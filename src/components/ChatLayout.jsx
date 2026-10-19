@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
   sendMessage,
+  checkAccount,
   receiveNotification,
   deleteNotification,
 } from "../api/greenApi";
@@ -18,6 +19,7 @@ export default function ChatLayout({ credentials }) {
   const [newPhone, setNewPhone] = useState("");
   const [isSending, setIsSending] = useState(false);
   const activeChatRef = useRef(activeChat);
+
   useEffect(() => {
     activeChatRef.current = activeChat;
   }, [activeChat]);
@@ -85,7 +87,29 @@ export default function ChatLayout({ credentials }) {
     );
 
     try {
-      await sendMessage(credentials, activeChat.phone, text);
+      // 1. Очищаем номер от лишних символов
+      let rawPhone = (activeChat.phone || "").replace(/\D/g, "");
+      let finalChatId = rawPhone;
+
+      // 2. Если это похоже на номер телефона (7-15 цифр), пытаемся узнать chatId
+      if (rawPhone.length >= 7 && rawPhone.length <= 15) {
+        try {
+          const accountInfo = await checkAccount(credentials, rawPhone);
+          if (accountInfo.exist && accountInfo.chatId) {
+            finalChatId = accountInfo.chatId;
+          }
+        } catch (e) {
+          console.warn(
+            "Не удалось проверить аккаунт, пробуем отправить как есть:",
+            e,
+          );
+          // Если ошибка при проверке, пробуем отправить как номер@c.us
+          finalChatId = `${rawPhone}@c.us`;
+        }
+      }
+
+      // 3. Отправляем
+      await sendMessage(credentials, finalChatId, text);
     } catch (error) {
       console.error("Ошибка отправки:", error);
       alert("Не удалось отправить сообщение: " + error.message);
@@ -110,9 +134,11 @@ export default function ChatLayout({ credentials }) {
           const isOutgoing = typeWebhook === "outgoingMessageReceived";
 
           if ((isIncoming || isOutgoing) && messageData) {
-            const senderPhone =
-              senderData.senderPhoneNumber?.toString() ||
-              senderData.sender.split("@")[0];
+            let senderPhone = senderData.senderPhoneNumber?.toString();
+
+            if (!senderPhone || senderPhone === "0") {
+              senderPhone = senderData.sender.split("@")[0];
+            }
 
             let text = "";
             if (messageData.typeMessage === "textMessage") {

@@ -1,4 +1,4 @@
-const API_URL = "https://api.green-api.com";
+const API_URL = "/api-green";
 
 export const checkInstance = async (credentials) => {
   const { idInstance, apiToken } = credentials;
@@ -6,16 +6,9 @@ export const checkInstance = async (credentials) => {
 
   try {
     const response = await fetch(url);
-
-    if (!response.ok) {
-      return false;
-    }
-
+    if (!response.ok) return false;
     const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      return false;
-    }
-
+    if (!contentType || !contentType.includes("application/json")) return false;
     const data = await response.json();
     return data.stateInstance !== undefined;
   } catch (error) {
@@ -24,20 +17,31 @@ export const checkInstance = async (credentials) => {
   }
 };
 
-export const sendMessage = async (credentials, phone, text) => {
+export const checkAccount = async (credentials, phone) => {
   const { idInstance, apiToken } = credentials;
-  const chatId = `${phone}@c.us`;
+  const url = `${API_URL}/waInstance${idInstance}/checkAccount/${apiToken}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneNumber: parseInt(phone) }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Ошибка проверки аккаунта");
+  }
+  return response.json();
+};
+
+export const sendMessage = async (credentials, chatId, text) => {
+  const { idInstance, apiToken } = credentials;
   const url = `${API_URL}/waInstance${idInstance}/sendMessage/${apiToken}`;
 
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      chatId: chatId,
-      message: text,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chatId: chatId, message: text }),
   });
 
   const contentType = response.headers.get("content-type");
@@ -51,7 +55,6 @@ export const sendMessage = async (credentials, phone, text) => {
   if (!response.ok) {
     throw new Error(data.message || "Ошибка отправки сообщения");
   }
-
   return data;
 };
 
@@ -64,14 +67,11 @@ export const receiveNotification = async (credentials) => {
     if (!response.ok) return null;
 
     const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      return null;
-    }
-    const textData = await response.text();
+    if (!contentType || !contentType.includes("application/json")) return null;
 
-    if (!textData || textData.trim() === "") {
-      return null;
-    }
+    const textData = await response.text();
+    if (!textData || textData.trim() === "") return null;
+
     const data = JSON.parse(textData);
     if (!data || !data.body) return null;
 
