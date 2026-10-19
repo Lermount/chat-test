@@ -15,4 +15,3 @@
 Ссылки
 
 - GitHub: https://github.com/Lermount/chat-test
-- Демо (Vercel): [Вставь ссылку сюда, когда задеплоишь]
