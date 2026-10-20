@@ -35,7 +35,6 @@ export default function ChatWindow({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#F4F4F5]">
-      {/* Шапка чата */}
       <div className="h-16 bg-white border-b border-gray-200 flex items-center px-4 gap-3 shrink-0 shadow-sm z-10">
         <Button
           variant="ghost"
